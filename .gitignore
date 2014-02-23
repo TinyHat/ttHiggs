@@ -5,3 +5,7 @@
 *.o
 *.d
 *.svn
+StandAlone
+obj
+test-bin
+bin
