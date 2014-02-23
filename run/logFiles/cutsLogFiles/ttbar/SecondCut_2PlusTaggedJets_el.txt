@@ -1,0 +1,18 @@
+Total number of events: 1370
+Total number of jets: 6280
+Total number of b-tagged jets (using MV1): 2912
+Number of events that have 0 MV1 tags: 0
+Number of events that have 1 MV1 tags: 0
+Number of events that have 2 MV1 tags: 1205
+Number of events that have 3 MV1 tags: 159
+Number of events that have 4 MV1 tags: 5
+Number of events that have more than 4 MV1 tags: 1
+ 
+Fraction of jets per event: 4.58394
+Fraction of tagged jets per event: 2.12555
+Fraction of events that have 0 MV1 tagged jets: 0
+Fraction of events that have 1 MV1 tagged jets: 0
+Fraction of events that have 2 MV1 tagged jets: 0.879562
+Fraction of events that have 3 MV1 tagged jets: 0.116058
+Fraction of events that have 4 MV1 tagged jets: 0.00364964
+Fraction of events that have >4 MV1 tagged jets: 0.000729927

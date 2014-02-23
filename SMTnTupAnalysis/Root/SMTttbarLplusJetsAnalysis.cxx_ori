@@ -1,0 +1,878 @@
+#define SMTttbarLplusJetsAnalysis_cxx
+
+#include "SMTnTupAnalysis/SMTttbarLplusJetsAnalysis.h"
+#include "WjetsCorrections/HFsys.h"
+#include "TH1.h"
+#include "TLorentzVector.h"
+#include <iostream>
+#include <string>
+
+using std::endl;
+using std::cout;
+
+
+SMTttbarLplusJetsAnalysis::SMTttbarLplusJetsAnalysis(TChain* chain, TString treeTagName, TString outFileName, int wjetsSysType){
+  
+  m_outRootFile = NULL;
+  m_chain = chain;
+  m_treeTagName = treeTagName;
+  m_outFileName = outFileName;
+  m_channelTag = "";
+  m_jetincTag = "3j";
+  
+  m_isElectron = false;
+  m_isWsample = false;
+  m_isZsample = false;
+  m_isMC = false;
+  m_isqcdDD = false;
+  m_isqcdAB = false;
+  m_isRaw = false;
+  m_isMC = false;
+  m_is3jin = true;
+  m_jetIncN = 3;
+                
+  // Init counters etc
+  m_evts = 0.;
+  m_evtsPassMETPretag = 0.;
+  m_evtsPassMETPretagWgt = 0.;
+  m_evtsPassMTWPretag = 0.;
+  m_evtsPassMTWPretagWgt = 0.;
+  m_evtsPassAllPretag = 0.;
+  m_evtsPassAllPretagWgt = 0.;
+  m_evtsPassAllTag = 0.;
+  m_evtsPassAllTagWgt = 0.;
+  m_evtsPassAllTagWgt_BRWgt_B_MU_UP = 0.;
+  m_evtsPassAllTagWgt_BRWgt_B_MU_DOWN = 0.;
+  m_evtsPassAllTagWgt_BRWgt_B_TAU_MU_UP = 0.;
+  m_evtsPassAllTagWgt_BRWgt_B_TAU_MU_DOWN = 0.;
+  m_evtsPassAllTagWgt_BRWgt_B_D_MUPLUS_UP = 0.;
+  m_evtsPassAllTagWgt_BRWgt_B_D_MUPLUS_DOWN = 0.;
+  m_evtsPassAllTagWgt_BRWgt_B_D_MUMINUS_UP = 0.;
+  m_evtsPassAllTagWgt_BRWgt_B_D_MUMINUS_DOWN = 0.;
+  m_evtsPassAllTagWgt_BRWgt_C_MU_UP = 0.;
+  m_evtsPassAllTagWgt_BRWgt_C_MU_DOWN = 0.;
+  
+  m_intitalSampleSize = 0.;
+  m_sampleScale = 1.;
+  
+  m_wjetsSysType = wjetsSysType;
+
+  m_nBjets = 0.;
+  m_nBjets_tagged = 0.;
+  
+  //histo container
+  m_histograms = new HistogramContainer("");
+  
+}
+
+SMTttbarLplusJetsAnalysis::~SMTttbarLplusJetsAnalysis(){
+  delete m_outRootFile;
+  delete m_histograms;
+}
+
+void SMTttbarLplusJetsAnalysis::Begin(TTree * /*tree*/)
+{
+
+	// cleanup pointers in case function has been executed before
+	gDirectory->Delete("All");
+  
+	// -------- Deal with passed options ----------------
+	TString option = GetOption();
+	cout << "| * Options set to = " << option << endl;
+
+
+	if (option.Contains("el ")) {
+		cout << "| * This is the electron channel" << endl;
+		m_isElectron = true;
+		m_channelTag = "el";
+	}
+	else {
+		cout << "| * This is the muon channel" << endl;
+		m_isElectron = false;
+		m_channelTag = "mu";
+	}
+	if (option.Contains("MC")) {
+		cout << "| * This is MC" << endl;
+		m_isMC = true;
+		if (option.Contains("Wsample")) {
+			cout << "| * This is a wSample" << endl;
+			m_isWsample = true;
+		}
+		if (option.Contains("WRaw")) {
+			cout << "| * Running on raw MC wih no W scales" << endl;
+			m_isRaw = true;
+		}
+		if (option.Contains("Zsample")) {
+			cout << "| * Running is a zSample" << endl;
+			m_isZsample = true;
+		}
+	}
+	else {
+        	cout << "| * This is Data" << endl;
+        	if (option.Contains("QCDDD")) {
+			cout << "| * This is a QCD DD sample" << endl;
+			m_isqcdDD = true;
+		}
+ 	}
+
+	if (m_treeTagName.Contains("ELEQCDAB")){
+		cout << "| * This is a QCD AB sample" << endl;
+		m_isqcdAB = true;
+  }
+  
+  if (option.Contains("4jin")){
+    m_is3jin = false;
+    m_jetincTag = "4j";
+    cout << "| * Running analysis using 1j,2j,3j,4j(inclusive) bins" << endl;
+  }
+  else{
+    m_is3jin = true;
+    m_jetincTag = "3j";
+    cout << "| * Running analysis using 1j,2j,3j(inclusive) bins" << endl;
+  }
+
+	// ---------------------------------------------------
+  
+  //lepton stuff
+  // Jet bin histos
+  m_histograms->add1DHisto(new TH1D("h_njet_pretag_"+m_channelTag, "Njets Pretag No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+  m_histograms->add1DHisto(new TH1D("h_njet_pretag_"+m_channelTag+"_wgt", "Njets Pretag Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+  m_histograms->add1DHisto(new TH1D("h_njet_pretagPosL_"+m_channelTag, "Njets Pretag PosL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+  m_histograms->add1DHisto(new TH1D("h_njet_pretagPosL_"+m_channelTag+"_wgt", "Njets Pretag PosL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+  m_histograms->add1DHisto(new TH1D("h_njet_pretagNegL_"+m_channelTag, "Njets Pretag NegL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+  m_histograms->add1DHisto(new TH1D("h_njet_pretagNegL_"+m_channelTag+"_wgt", "Njets Pretag NegL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+  m_histograms->add1DHisto(new TH1D("h_njet_tag_"+m_channelTag, "Njets Tag No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+  m_histograms->add1DHisto(new TH1D("h_njet_tag_"+m_channelTag+"_wgt", "Njets Tag Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+  m_histograms->add1DHisto(new TH1D("h_njet_tagPosL_"+m_channelTag, "Njets Tag PosL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+  m_histograms->add1DHisto(new TH1D("h_njet_tagPosL_"+m_channelTag+"_wgt", "Njets Tag PosL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+  m_histograms->add1DHisto(new TH1D("h_njet_tagNegL_"+m_channelTag, "Njets Tag NegL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+  m_histograms->add1DHisto(new TH1D("h_njet_tagNegL_"+m_channelTag+"_wgt", "Njets Tag NegL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+  m_histograms->add1DHisto(new TH1D("h_nBjet_tag_"+m_channelTag, "Njets Tag No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+  m_histograms->add1DHisto(new TH1D("h_nBjet_tag_"+m_channelTag+"_wgt", "Njets Tag Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+
+
+  if (m_isWsample) {
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagLF_"+m_channelTag, "Njets PretagLF No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagLF_"+m_channelTag+"_wgt", "Njets PretagLF Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagPosLLF_"+m_channelTag, "Njets PretagLF PosL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagPosLLF_"+m_channelTag+"_wgt", "Njets PretagLF PosL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagNegLLF_"+m_channelTag, "Njets PretagLF NegL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagNegLLF_"+m_channelTag+"_wgt", "Njets PretagLF NegL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagLF_"+m_channelTag, "Njets TagLF No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagLF_"+m_channelTag+"_wgt", "Njets TagLF Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagPosLLF_"+m_channelTag, "Njets TagLF PosL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagPosLLF_"+m_channelTag+"_wgt", "Njets TagLF PosL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagNegLLF_"+m_channelTag, "Njets TagLF NegL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagNegLLF_"+m_channelTag+"_wgt", "Njets TagLF NegL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagC_"+m_channelTag, "Njets PretagC No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagC_"+m_channelTag+"_wgt", "Njets PretagC Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagPosLC_"+m_channelTag, "Njets PretagC PosL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagPosLC_"+m_channelTag+"_wgt", "Njets PretagC PosL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagNegLC_"+m_channelTag, "Njets PretagC NegL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagNegLC_"+m_channelTag+"_wgt", "Njets PretagC NegL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagC_"+m_channelTag, "Njets TagC No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagC_"+m_channelTag+"_wgt", "Njets TagC Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagPosLC_"+m_channelTag, "Njets TagC PosL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagPosLC_"+m_channelTag+"_wgt", "Njets TagC PosL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagNegLC_"+m_channelTag, "Njets TagC NegL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagNegLC_"+m_channelTag+"_wgt", "Njets TagC NegL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagCC_"+m_channelTag, "Njets PretagCC No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagCC_"+m_channelTag+"_wgt", "Njets PretagCC Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagPosLCC_"+m_channelTag, "Njets PretagCC PosL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagPosLCC_"+m_channelTag+"_wgt", "Njets PretagCC PosL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagNegLCC_"+m_channelTag, "Njets PretagCC NegL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagNegLCC_"+m_channelTag+"_wgt", "Njets PretagCC NegL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagCC_"+m_channelTag, "Njets TagCC No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagCC_"+m_channelTag+"_wgt", "Njets TagCC Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagPosLCC_"+m_channelTag, "Njets TagCC PosL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagPosLCC_"+m_channelTag+"_wgt", "Njets TagCC PosL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagNegLCC_"+m_channelTag, "Njets TagCC NegL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagNegLCC_"+m_channelTag+"_wgt", "Njets TagCC NegL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagBB_"+m_channelTag, "Njets PretagBB No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagBB_"+m_channelTag+"_wgt", "Njets PretagBB Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagPosLBB_"+m_channelTag, "Njets PretagBB PosL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagPosLBB_"+m_channelTag+"_wgt", "Njets PretagBB PosL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagNegLBB_"+m_channelTag, "Njets PretagBB NegL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_pretagNegLBB_"+m_channelTag+"_wgt", "Njets PretagBB NegL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagBB_"+m_channelTag, "Njets TagBB No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagBB_"+m_channelTag+"_wgt", "Njets TagBB Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagPosLBB_"+m_channelTag, "Njets TagBB PosL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagPosLBB_"+m_channelTag+"_wgt", "Njets TagBB PosL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagNegLBB_"+m_channelTag, "Njets TagBB NegL No Scales/Weights - "+m_channelTag+"+jets",19, -0.5, 18.5));
+	  m_histograms->add1DHisto(new TH1D("h_njet_tagNegLBB_"+m_channelTag+"_wgt", "Njets TagBB NegL Scaled/Weighted - "+m_channelTag+"+jets",19, -0.5, 18.5));
+
+  }
+
+  //lepton stuff
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_pt", "Lepton Pt Pretag No Scales/Weights",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_pt_wgt", "Lepton Pt Pretag Scaled/Weighted",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_eta", "Lepton Eta Pretag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_eta_wgt", "Lepton Eta Pretag Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretagPosL_pt", "Lepton Pt Pretag PosL No Scales/Weights",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretagPosL_pt_wgt", "Lepton Pt Pretag PosL Scaled/Weighted",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretagPosL_eta", "Lepton Eta Pretag PosL No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretagPosL_eta_wgt", "Lepton Eta Pretag PosL Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretagNegL_pt", "Lepton Pt Pretag NegL No Scales/Weights",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretagNegL_pt_wgt", "Lepton Pt Pretag NegL Scaled/Weighted",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretagNegL_eta", "Lepton Eta Pretag NegL No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretagNegL_eta_wgt", "Lepton Eta Pretag NegL Scaled/Weighted",100, -5, 5));
+
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_pt", "Lepton Pt Tag No Scales/Weights",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_pt_wgt", "Lepton Pt Tag Scaled/Weighted",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_eta", "Lepton Eta Tag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_eta_wgt", "Lepton Eta Tag Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tagPosL_pt", "Lepton Pt Tag PosL No Scales/Weights",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tagPosL_pt_wgt", "Lepton Pt Tag PosL Scaled/Weighted",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tagPosL_eta", "Lepton Eta Tag PosL No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tagPosL_eta_wgt", "Lepton Eta Tag PosL Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tagNegL_pt", "Lepton Pt Tag NegL No Scales/Weights",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tagNegL_pt_wgt", "Lepton Pt Tag NegL Scaled/Weighted",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tagNegL_eta", "Lepton Eta Tag NegL No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tagNegL_eta_wgt", "Lepton Eta Tag NegL Scaled/Weighted",100, -5, 5));
+
+  //SMT Pretag
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_pt", "SMT Pt Pretag No Scales/Weights",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_pt_wgt", "SMT Pt Pretag Scaled/Weighted",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_pt2", "SMT Pt Pretag No Scales/Weights",200, 0, 400));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_pt2_wgt", "SMT Pt Pretag Scaled/Weighted",200, 0, 400));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_eta", "SMT Eta Pretag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_eta_wgt", "SMT Eta Pretag Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_chi2", "SMT Chi2 Pretag No Scales/Weights",100, 0, 10));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_chi2_wgt", "SMT Chi2 Pretag Scaled/Weighted",100, 0, 10));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_dRjet", "SMT dR to Jet Pretag No Scales/Weights",50, 0, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_dRjet_wgt", "SMT dR to Jet Pretag Scaled/Weighted",50, 0, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_d0", "SMT d0 Pretag No Scales/Weights",50, 0, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_d0_wgt", "SMT d0 Pretag Scaled/Weighted",50, 0, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_z0sin", "SMT z0*sin(theta) Pretag No Scales/Weights",50, 0, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_z0sin_wgt", "SMT z0*sin(theta) Pretag Scaled/Weighted",50, 0, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_EMfrac", "SMT EMfrac Pretag No Scales/Weights",50, 0, 1));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_EMfrac_wgt", "SMT EMfrac Pretag No Scales/Weights",50, 0, 1));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_Ntrack", "SMT NTrack Pretag Scaled/Weighted",100, -0.5, 99.5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_SMT_Ntrack_wgt", "SMT NTrack Pretag Scaled/Weighted",100, -0.5, 99.5));
+
+  //SMT Tag
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_pt", "SMT Pt Tag No Scales/Weights",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_pt_wgt", "SMT Pt Tag Scaled/Weighted",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_pt2", "SMT Pt Tag No Scales/Weights",200, 0, 400));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_pt2_wgt", "SMT Pt Tag Scaled/Weighted",200, 0, 400));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_ptRel", "SMT PtRel Tag No Scales/Weights",200, 0, 100));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_ptRel_wgt", "SMT PtRel Tag Scaled/Weighted",200, 0, 100));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_eta", "SMT Eta Tag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_eta_wgt", "SMT Eta Tag Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_chi2", "SMT Chi2 Tag No Scales/Weights",100, 0, 10));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_chi2_wgt", "SMT Chi2 Tag Scaled/Weighted",100, 0, 10));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_dRjet", "SMT dR to Jet Tag No Scales/Weights",50, 0, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_dRjet_wgt", "SMT dR to Jet Tag Scaled/Weighted",50, 0, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_d0", "SMT d0 Tag No Scales/Weights",50, 0, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_d0_wgt", "SMT d0 Tag Scaled/Weighted",50, 0, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_z0sin", "SMT z0*sin(theta) Tag No Scales/Weights",50, 0, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_z0sin_wgt", "SMT z0*sin(theta) Tag Scaled/Weighted",50, 0, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_EMfrac", "SMT EMfrac Tag No Scales/Weights",50, 0, 1));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_EMfrac_wgt", "SMT EMfrac Tag No Scales/Weights",50, 0, 1));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_Ntrack", "SMT NTrack Tag Scaled/Weighted",100, -0.5, 99.5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_SMT_Ntrack_wgt", "SMT NTrack Tag Scaled/Weighted",100, -0.5, 99.5));
+
+  //MET
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_MET", "MET Pretag No Scales/Weights - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_MET_wgt", "MET Pretag Scaled/Weighted - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretagPosL_MET", "MET Pretag PosL No Scales/Weights - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretagPosL_MET_wgt", "MET Pretag PosL Scaled/Weighted - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretagNegL_MET", "MET Pretag NegL No Scales/Weights - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretagNegL_MET_wgt", "MET Pretag NegL Scaled/Weighted - "+m_channelTag+"+jets",100, 0, 500));
+
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_MET", "MET Tag No Scales/Weights - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_MET_wgt", "MET Tag Scaled/Weighted - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tagPosL_MET", "MET Tag PosL No Scales/Weights - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tagPosL_MET_wgt", "MET Tag PosL Scaled/Weighted - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tagNegL_MET", "MET Tag NegL No Scales/Weights - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tagNegL_MET_wgt", "MET Tag NegL Scaled/Weighted - "+m_channelTag+"+jets",100, 0, 500));
+
+  //MTW
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_MTW", "MTW Pretag No Scales/Weights - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_MTW_wgt", "MTW Pretag Scaled/Weighted - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretagPosL_MTW", "MTW Pretag PosL No Scales/Weights - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretagPosL_MTW_wgt", "MTW Pretag PosL Scaled/Weighted - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretagNegL_MTW", "MTW Pretag NegL No Scales/Weights - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretagNegL_MTW_wgt", "MTW Pretag NegL Scaled/Weighted - "+m_channelTag+"+jets",100, 0, 500));
+
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_MTW", "MTW Tag No Scales/Weights - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_MTW_wgt", "MTW Tag Scaled/Weighted - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tagPosL_MTW", "MTW Tag PosL No Scales/Weights - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tagPosL_MTW_wgt", "MTW Tag PosL Scaled/Weighted - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tagNegL_MTW", "MTW Tag NegL No Scales/Weights - "+m_channelTag+"+jets",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tagNegL_MTW_wgt", "MTW Tag NegL Scaled/Weighted - "+m_channelTag+"+jets",100, 0, 500));
+
+  //Leading jet
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet1_pt", "Leading Jet Pt Pretag No Scales/Weights",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet1_pt_wgt", "Leading Jet Pt Pretag Scaled/Weighted",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet1_eta", "Leading Jet Eta Pretag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet1_eta_wgt", "Leading Jet Eta Pretag Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet1_phi", "Leading Jet Phi Pretag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet1_phi_wgt", "Leading Jet Phi Pretag Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet1_pt", "Leading Jet Pt Tag No Scales/Weights",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet1_pt_wgt", "Leading Jet Pt Tag Scaled/Weighted",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet1_eta", "Leading Jet Eta Tag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet1_eta_wgt", "Leading Jet Eta Tag Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet1_phi", "Leading Jet Phi Tag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet1_phi_wgt", "Leading Jet Phi Tag Scaled/Weighted",100, -5, 5));
+
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet2_pt", "Leading Jet Pt Pretag No Scales/Weights",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet2_pt_wgt", "Leading Jet Pt Pretag Scaled/Weighted",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet2_eta", "Leading Jet Eta Pretag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet2_eta_wgt", "Leading Jet Eta Pretag Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet2_phi", "Leading Jet Phi Pretag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet2_phi_wgt", "Leading Jet Phi Pretag Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet2_pt", "Leading Jet Pt Tag No Scales/Weights",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet2_pt_wgt", "Leading Jet Pt Tag Scaled/Weighted",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet2_eta", "Leading Jet Eta Tag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet2_eta_wgt", "Leading Jet Eta Tag Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet2_phi", "Leading Jet Phi Tag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet2_phi_wgt", "Leading Jet Phi Tag Scaled/Weighted",100, -5, 5));
+
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet3_pt", "Leading Jet Pt Pretag No Scales/Weights",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet3_pt_wgt", "Leading Jet Pt Pretag Scaled/Weighted",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet3_eta", "Leading Jet Eta Pretag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet3_eta_wgt", "Leading Jet Eta Pretag Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet3_phi", "Leading Jet Phi Pretag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet3_phi_wgt", "Leading Jet Phi Pretag Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet3_pt", "Leading Jet Pt Tag No Scales/Weights",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet3_pt_wgt", "Leading Jet Pt Tag Scaled/Weighted",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet3_eta", "Leading Jet Eta Tag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet3_eta_wgt", "Leading Jet Eta Tag Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet3_phi", "Leading Jet Phi Tag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet3_phi_wgt", "Leading Jet Phi Tag Scaled/Weighted",100, -5, 5));
+
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet4_pt", "Leading Jet Pt Pretag No Scales/Weights",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet4_pt_wgt", "Leading Jet Pt Pretag Scaled/Weighted",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet4_eta", "Leading Jet Eta Pretag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet4_eta_wgt", "Leading Jet Eta Pretag Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet4_phi", "Leading Jet Phi Pretag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_jet4_phi_wgt", "Leading Jet Phi Pretag Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet4_pt", "Leading Jet Pt Tag No Scales/Weights",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet4_pt_wgt", "Leading Jet Pt Tag Scaled/Weighted",100, 0, 500));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet4_eta", "Leading Jet Eta Tag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet4_eta_wgt", "Leading Jet Eta Tag Scaled/Weighted",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet4_phi", "Leading Jet Phi Tag No Scales/Weights",100, -5, 5));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_jet4_phi_wgt", "Leading Jet Phi Tag Scaled/Weighted",100, -5, 5));
+
+        
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_3j_Ht", "Sum Ht Pretag",200, 0, 1000));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_pretag_3j_Ht_wgt", "Sum Ht Pretag",200, 0, 1000));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_3j_Ht", "Sum Ht Tag",200, 0, 1000));
+  m_histograms->add1DHisto(new TH1D("h_"+m_channelTag+"_tag_3j_Ht_wgt", "Sum Ht Tag",200, 0, 1000));
+
+  char *rootcoreDir = getenv("ROOTCOREDIR");
+  std::string baseDir = "";
+  if(rootcoreDir && baseDir == "") {
+    baseDir = std::string(rootcoreDir) + "/";
+  }
+  
+  std::string nameMM=baseDir+"/data/FakesMacros/EJetsMM/";
+  m_llmmB = new LLMatrixMethodB(nameMM,3); //use choice 2 for Eiso
+  m_MatrixUtils = new MatrixUtils();
+
+  std::string nameBK=baseDir+"/data/FakesMacros/MuJetsMMEffs_ICHEP12_mc11c_BK_MV1_70.root";
+  std::string nameLM=baseDir+"/data/FakesMacros/MuJetsMMEffs_ICHEP12_mc11c_LM_MV1_70.root";
+  std::string nameBfake=baseDir+"/data/FakesMacros/MuJetsMM_B_mc11c_ICHEP12_eff_fake_ALL.root";
+  std::string nameBreal=baseDir+"/data/FakesMacros/MuJetsMM_B_mc11c_ICHEP12_eff_real_ALL.root";    
+  MJMMA_BK = new MuJetsMatrixMethodA(nameBK, "#||{#eta(#mu)};p_{T}(j1)[GeV]");
+  MJMMA_LM = new MuJetsMatrixMethodA(nameLM, "#||{#eta(#mu)};p_{T}(j1)[GeV]");
+  MJMMB = new MuJetsMatrixMethodB(nameBfake, nameBreal);
+
+}
+
+
+Bool_t SMTttbarLplusJetsAnalysis::Process(Long64_t entry)
+{
+	// Gets the next Tree entry i.e. the next event
+	fChain->GetTree()->GetEntry(entry);
+
+  // increment event counter
+  m_evts++;
+
+  // Retrieve cut flow histograms
+	TH1D* h_cutFlow = NULL;
+	if (m_evts == 1){
+		TFile * currentFile = (TFile*)m_chain->GetFile();
+		if (m_isElectron) h_cutFlow = (TH1D*)currentFile->Get("h_cutFlow_el_mcwgt_"+m_treeTagName);
+		else h_cutFlow = (TH1D*)currentFile->Get("h_cutFlow_mu_mcwgt_"+m_treeTagName);
+		if (h_cutFlow != NULL){
+			cout << "| * This file was run over: " << endl;
+			if (m_isMC){
+        double fact=1;
+        if (ChannelNumber == 117293 || ChannelNumber == 117294 || ChannelNumber == 117295 || ChannelNumber == 117296 || ChannelNumber == 117297){
+          fact=1.52/1.2;
+        }
+				int bin=3;
+				if (m_isWsample || m_isZsample) bin=2;
+				m_intitalSampleSize = h_cutFlow->GetBinContent(bin);
+				cout << "|-> Channel Number = " << ChannelNumber << endl;
+				cout << "|-> Initial Events = " << m_intitalSampleSize << endl;
+				cout << "|-> Sigma*kFac = " << MCXSec*fact << " pb" << endl;
+				cout << "|-> Sample Lumi = " << m_intitalSampleSize/(MCXSec*fact) << " pb-1" << endl;
+				cout << "|-> Data Lumi = " << 4713.11 << endl;
+				m_sampleScale =  4713.11 / (m_intitalSampleSize/(MCXSec*fact));
+				cout << "|-> Sample Scale = " << m_sampleScale << endl;
+			}
+			else {
+				m_intitalSampleSize = h_cutFlow->GetBinContent(1);
+				cout << "|-> Run Number = " << RunNumber << endl;
+				cout << "|-> Initial Events = " << m_intitalSampleSize << endl;
+        			cout << "|-> After GRL = " << h_cutFlow->GetBinContent(2) << endl;
+				m_sampleScale = 1.;
+      			}
+    		}
+    		else {
+      			cout << "| * WARNING:: Could not retrieve cut flow histogram from fChain->GetTree()->GetUserInfo()" << endl;
+    		}
+	}
+  
+	// Set event weights
+	double eventWeightPretag = m_sampleScale * TotalWgtPretag;
+	double eventWeightTag = m_sampleScale * TotalWgtTag;
+
+  
+	// Simple progress counter
+	if ((int)m_evts % 10000 == 0) cout << m_evts << " Events Processed" << endl; 
+	if (m_evts < 20){
+		cout << "|********* Weights For Event " << m_evts << endl;
+		cout << "|-> MCeventWeight = " <<  MCWgt<< endl ;
+   		cout << "|-> PileUpScale = " << PUWgt << endl ;
+   		cout << "|-> LeptonScale = " << LeptonSF << endl ;
+   		cout << "|-> WScale = " << WSF << endl;
+   		cout << "|-> JVFSF = " << JVFSF << endl;
+   		cout << "|-> SMTSF = " << SMTSF << endl;
+   		cout << "|-> QCDMMeventWeight = " << QCDMMWgt << endl;
+   		cout << "|-> StdCorrsSF = " << StdCorrsSF << endl;
+   		cout << "|-> BRWgt_NOM = " << BRWgt_NOM << endl;
+   		cout << "|-> TotalScalePretag = " << TotalSFPretag << endl;
+   		cout << "|-> TotaleventWeightPretagPretag = " << TotalWgtPretag << endl;
+   		cout << "|-> TotalScaleTag = " << TotalSFTag << endl;
+   		cout << "|-> TotaleventWeightPretagTag = " << TotalWgtTag << endl;
+		cout << "|-> m_sampleScale = " << m_sampleScale << endl;
+		cout << endl;
+	}
+	// -----------------------------------------
+  
+	//-------- Check QCD Weights or redo them
+	if (m_isqcdDD)
+	{
+		double qcdMMeventWeight = 1.0;
+		if (m_isElectron){
+      
+			//Now get the weight
+			//Find period:
+			bool isBtoK = false;
+			if(DataPeriod < 5) isBtoK = true;
+      m_llmmB->RealEff(el_cl_eta,lep_pt/1e3,isBtoK);
+			double r = m_llmmB->GetEffReal();
+			m_llmmB->FakeEff(el_cl_eta,lep_pt/1e3,isBtoK,false);
+			double f = m_llmmB->GetEffFake();
+			double nf = 0;
+			double nr = 0;
+			qcdMMeventWeight = m_MatrixUtils->lepton_weight(!lep_isTight, r ,f , nf, nr);
+      
+		}
+		else {
+			//find leading jet index
+			int leadingJetIndex=-1;
+			double maxPt = 0;
+			for (unsigned int i=0; i<jet_n; i++){
+				if (jet_pt->at(i) > maxPt){
+					maxPt = jet_pt->at(i);
+					leadingJetIndex = i;
+				}
+			}
+      
+			double values[2] = {fabs(lep_eta), (*jet_pt)[leadingJetIndex] / 1000.};
+      
+			//Period dependence //note 6 = periodLM
+			double weightA = 1.;
+			double weightB = 1.;
+			if (DataPeriod < 5) {
+				weightA = MJMMA_BK->GetWeight(values, true, lep_isTight, false);
+        if (m_evts < 20) cout << "|-> Recalc QCDMM BK weightA = " << weightA << endl;
+			} else {
+				weightA = MJMMA_LM->GetWeight(values, true, lep_isTight, false);
+        if (m_evts < 20) cout << "|-> Recalc QCDMM LM weightA = " << weightA << endl;
+			}
+			weightB = MJMMB->GetWeight(lep_isTight, true, jet_n, fabs(lep_eta), false);
+      if (m_evts < 20) cout << "|-> Recalc QCDMM weightB = " << weightB << endl;
+			qcdMMeventWeight = .5*(weightA + weightB);
+      //qcdMMeventWeight = weightB;
+		}
+		if (m_evts < 20) cout << "|-> Recalc QCDMMeventWeight = " << qcdMMeventWeight << endl;
+    eventWeightPretag = qcdMMeventWeight;
+		eventWeightTag = qcdMMeventWeight;
+	}
+	// -----------------------------------------
+
+
+	//--------- Apply HFOR (should already be applied so safety check)
+	if (HFOR == 4) return kTRUE;
+
+	//Apply MET & MTW cuts here
+	if (m_isElectron){
+		if (met_et/1000. <= 30) return kTRUE;
+		m_evtsPassMETPretag++;
+		m_evtsPassMETPretagWgt += eventWeightPretag;
+		if (mwt/1000. <= 30) return kTRUE;
+		m_evtsPassMTWPretag++;
+		m_evtsPassMTWPretagWgt += eventWeightPretag;
+	}
+	else {
+		if (met_et/1000. <= 20) return kTRUE;
+		m_evtsPassMETPretag++;
+		m_evtsPassMETPretagWgt += eventWeightPretag;
+		if ((met_et+mwt)/1000. <= 60) return kTRUE;
+		m_evtsPassMTWPretag++;
+		m_evtsPassMTWPretagWgt += eventWeightPretag;
+	}
+	// -----------------------------------------
+  
+  //--------- Wjets HF and CA normalisation (doing for 1,2,>=3jet bins)
+  if (!m_isRaw && m_isWsample){
+    if (m_evts < 20) cout << "|-> Running W+jets weights:" << endl;
+    double sf;
+    double newJetN;
+    if (jet_n < m_jetIncN) newJetN = jet_n;
+    else {
+      if (m_jetIncN == 3) newJetN = 3.1;
+      else newJetN = 4.1;
+    }
+    if (m_evts < 20) cout << "|-> Running W+jets weights: using jet bin = " << newJetN << endl;
+    if (m_evts < 20) cout << "|-> Running W+jets weights: using sys type = " << m_wjetsSysType << endl;
+    if (m_isElectron){
+      sf = this->getWjets_HF_CA_SF(newJetN, HFOR, true, m_wjetsSysType);
+    }
+    else{
+      sf = this->getWjets_HF_CA_SF(newJetN, HFOR, false, m_wjetsSysType);
+    }
+    if (m_evts < 20) cout << "|-> Running W+jets weights: scaleFactor = " << sf << endl;
+    eventWeightPretag *= sf;
+    eventWeightTag *= sf;
+  }
+
+	// --------- set good b-jet indices
+	std::vector<int> goodBJetIndices;
+	for (unsigned int i=0; i<jet_n; i++){
+		if (jet_isBJet_SMT->at(i)){
+			goodBJetIndices.push_back(i);
+		}
+	}
+	if (m_evts < 20) cout << "|-> Found " << goodBJetIndices.size() << " good b-jets " << endl;
+	// -----------------------------------------
+
+
+	// --------- Set leading jet indices
+	int njetTag=goodBJetIndices.size();
+	int leadingJetIndex1=-1;
+	double maxPt = 0;
+	for (unsigned int i=0; i<jet_n; i++){
+		if (jet_pt->at(i) > maxPt){
+			maxPt = jet_pt->at(i);
+			leadingJetIndex1 = i;
+		}
+	}
+	int leadingJetIndex2=-1;
+	maxPt = 0;
+	for (unsigned int i=0; i<jet_n; i++){
+		if (jet_pt->at(i) > maxPt && i!=leadingJetIndex1){
+			maxPt = jet_pt->at(i);
+			leadingJetIndex2 = i;
+		}
+	}
+	int leadingJetIndex3=-1;
+	maxPt = 0;
+	for (unsigned int i=0; i<jet_n; i++){
+		if (jet_pt->at(i) > maxPt && i!=leadingJetIndex2 && i!=leadingJetIndex1){
+			maxPt = jet_pt->at(i);
+			leadingJetIndex3 = i;
+		}
+	}
+	// -----------------------------------------
+
+	// Now fill the histograms in various jet bins
+	//pretag
+	this->fillNJetHistograms(m_channelTag,"",jet_n,eventWeightPretag);
+	if (jet_n >= m_jetIncN){
+		this->fillLeptonHistograms(m_channelTag,"pt",lep_pt/1000.,eventWeightPretag);
+		this->fillLeptonHistograms(m_channelTag,"eta",lep_eta,eventWeightPretag);
+		this->fillLeptonHistograms(m_channelTag,"MET",met_et/1000.,eventWeightPretag);
+		this->fillLeptonHistograms(m_channelTag,"MTW",mwt/1000.,eventWeightPretag);
+		for (unsigned int i=0; i<jet_n; i++){
+			this->fillSMTHistograms(m_channelTag, "pt", (*jet_SMTMuon_pt)[i]/1000., eventWeightPretag);
+			this->fillSMTHistograms(m_channelTag, "eta", (*jet_SMTMuon_eta)[i], eventWeightPretag);
+			this->fillSMTHistograms(m_channelTag, "chi2", (*jet_SMTMuon_chi2)[i], eventWeightPretag);
+			this->fillSMTHistograms(m_channelTag, "dRjet", (*jet_SMTMuon_dRJet)[i], eventWeightPretag);
+			this->fillSMTHistograms(m_channelTag, "d0", (*jet_SMTMuon_d0)[i], eventWeightPretag);
+			this->fillSMTHistograms(m_channelTag, "z0sin", (*jet_SMTMuon_sinTheta)[i], eventWeightPretag);
+			this->fillSMTHistograms(m_channelTag, "EMfrac", (*jet_emFrac)[i], eventWeightPretag);
+			this->fillSMTHistograms(m_channelTag, "Ntrack", (*jet_nTracks)[i], eventWeightPretag);
+		}
+		this->fillLeadingJetHistograms(m_channelTag,"jet1_pt", (*jet_pt)[leadingJetIndex1]/1000., eventWeightPretag);
+		this->fillLeadingJetHistograms(m_channelTag,"jet1_eta", (*jet_eta)[leadingJetIndex1], eventWeightPretag);
+		this->fillLeadingJetHistograms(m_channelTag,"jet1_phi", (*jet_phi)[leadingJetIndex1], eventWeightPretag);
+		this->fillLeadingJetHistograms(m_channelTag,"jet2_pt", (*jet_pt)[leadingJetIndex2]/1000., eventWeightPretag);
+		this->fillLeadingJetHistograms(m_channelTag,"jet2_eta", (*jet_eta)[leadingJetIndex2], eventWeightPretag);
+		this->fillLeadingJetHistograms(m_channelTag,"jet2_phi", (*jet_phi)[leadingJetIndex2], eventWeightPretag);
+		this->fillLeadingJetHistograms(m_channelTag,"jet3_pt", (*jet_pt)[leadingJetIndex3]/1000., eventWeightPretag);
+		this->fillLeadingJetHistograms(m_channelTag,"jet3_eta", (*jet_eta)[leadingJetIndex3], eventWeightPretag);
+		this->fillLeadingJetHistograms(m_channelTag,"jet3_phi", (*jet_phi)[leadingJetIndex3], eventWeightPretag);
+	}
+	if (HFOR == 3 && m_isWsample) this->fillNJetHistograms(m_channelTag,"LF",jet_n,eventWeightPretag); //LF
+	else if (HFOR == 2 && m_isWsample) this->fillNJetHistograms(m_channelTag,"C",jet_n,eventWeightPretag); //C
+	else if (HFOR == 1 && m_isWsample) this->fillNJetHistograms(m_channelTag,"CC",jet_n,eventWeightPretag); //CC
+	else if (HFOR == 0 && m_isWsample) this->fillNJetHistograms(m_channelTag,"BB",jet_n,eventWeightPretag); //BB
+	//If we have at least one tag
+	if (njetTag > 0){
+		this->fillNJetHistograms(m_channelTag,"",jet_n,eventWeightTag,true);
+		if (jet_n >= m_jetIncN) {
+			this->fillNBJetHistograms(m_channelTag,"",njetTag,eventWeightTag);
+			this->fillLeptonHistograms(m_channelTag,"pt",lep_pt/1000.,eventWeightTag,true);
+			this->fillLeptonHistograms(m_channelTag,"eta",lep_eta,eventWeightTag,true);
+			this->fillLeptonHistograms(m_channelTag,"MET",met_et/1000.,eventWeightTag,true);
+			this->fillLeptonHistograms(m_channelTag,"MTW",mwt/1000.,eventWeightTag,true);
+			for (unsigned int i=0; i<goodBJetIndices.size(); i++){
+				this->fillSMTHistograms(m_channelTag, "pt", (*jet_SMTMuon_pt)[goodBJetIndices.at(i)]/1000., eventWeightTag, true);
+				this->fillSMTHistograms(m_channelTag, "eta", (*jet_SMTMuon_eta)[goodBJetIndices.at(i)], eventWeightTag, true);
+				this->fillSMTHistograms(m_channelTag, "chi2", (*jet_SMTMuon_chi2)[goodBJetIndices.at(i)], eventWeightTag, true);
+				this->fillSMTHistograms(m_channelTag, "dRjet", (*jet_SMTMuon_dRJet)[goodBJetIndices.at(i)], eventWeightTag, true);
+				this->fillSMTHistograms(m_channelTag, "d0", (*jet_SMTMuon_d0)[goodBJetIndices.at(i)], eventWeightTag, true);
+				this->fillSMTHistograms(m_channelTag, "z0sin", (*jet_SMTMuon_sinTheta)[goodBJetIndices.at(i)], eventWeightTag, true);
+				TLorentzVector lv_jet, lv_SMT;
+				lv_jet.SetPtEtaPhiE((*jet_pt)[goodBJetIndices.at(i)]/1000.,(*jet_eta)[goodBJetIndices.at(i)],(*jet_phi)[goodBJetIndices.at(i)],(*jet_E)[goodBJetIndices.at(i)]/1000.);
+				lv_SMT.SetPtEtaPhiE((*jet_SMTMuon_pt)[goodBJetIndices.at(i)]/1000.,(*jet_SMTMuon_eta)[goodBJetIndices.at(i)],(*jet_SMTMuon_phi)[goodBJetIndices.at(i)],(*jet_SMTMuon_E)[goodBJetIndices.at(i)]/1000.);
+				double pt_rel = lv_SMT.P()*sin(lv_SMT.Angle(lv_jet.Vect()));
+				this->fillSMTHistograms(m_channelTag, "ptRel", pt_rel, eventWeightTag, true);
+				this->fillSMTHistograms(m_channelTag, "EMfrac", (*jet_emFrac)[goodBJetIndices.at(i)], eventWeightTag, true);
+				this->fillSMTHistograms(m_channelTag, "Ntrack", (*jet_nTracks)[goodBJetIndices.at(i)], eventWeightTag, true);
+			}
+			this->fillLeadingJetHistograms(m_channelTag,"jet1_pt", (*jet_pt)[leadingJetIndex1]/1000., eventWeightTag,true);
+			this->fillLeadingJetHistograms(m_channelTag,"jet1_eta", (*jet_eta)[leadingJetIndex1], eventWeightTag,true);
+			this->fillLeadingJetHistograms(m_channelTag,"jet1_phi", (*jet_phi)[leadingJetIndex1], eventWeightTag,true);
+			this->fillLeadingJetHistograms(m_channelTag,"jet2_pt", (*jet_pt)[leadingJetIndex2]/1000., eventWeightTag,true);
+			this->fillLeadingJetHistograms(m_channelTag,"jet2_eta", (*jet_eta)[leadingJetIndex2], eventWeightTag,true);
+			this->fillLeadingJetHistograms(m_channelTag,"jet2_phi", (*jet_phi)[leadingJetIndex2], eventWeightTag,true);
+			this->fillLeadingJetHistograms(m_channelTag,"jet3_pt", (*jet_pt)[leadingJetIndex3]/1000., eventWeightTag,true);
+			this->fillLeadingJetHistograms(m_channelTag,"jet3_eta", (*jet_eta)[leadingJetIndex3], eventWeightTag,true);
+			this->fillLeadingJetHistograms(m_channelTag,"jet3_phi", (*jet_phi)[leadingJetIndex3], eventWeightTag,true);
+		}
+		if (HFOR == 3 && m_isWsample) this->fillNJetHistograms(m_channelTag,"LF",jet_n,eventWeightTag,true); //LF
+		else if (HFOR == 2 && m_isWsample) this->fillNJetHistograms(m_channelTag,"C",jet_n,eventWeightTag,true); //C			
+		else if (HFOR == 1 && m_isWsample) this->fillNJetHistograms(m_channelTag,"CC",jet_n,eventWeightTag,true); //CC
+		else if (HFOR == 0 && m_isWsample) this->fillNJetHistograms(m_channelTag,"BB",jet_n,eventWeightTag,true); //BB
+	}
+	//---------------------------------------------------------------------
+
+
+        for (int k=0; k<jet_n; k++){
+	  if (jet_flavor_truth_label->at(k) == 5){
+	      m_nBjets++;
+	      if (jet_isBJet_SMT->at(k)){
+	       m_nBjets_tagged++;
+              }
+	  }
+        }
+	  
+
+
+	// Apply the rest of the jet cuts to get a final cut flow
+
+	//Apply jet cuts
+	if (jet_n < m_jetIncN) return kTRUE;
+	m_evtsPassAllPretag++;
+	m_evtsPassAllPretagWgt+=eventWeightPretag;
+  
+  
+	// At least one SMT
+	if (!IsEvent_SMT) return kTRUE;
+	m_evtsPassAllTag++;
+	if (ChannelNumber == 105200){
+	  m_evtsPassAllTagWgt+= (eventWeightTag *BRWgt_NOM);
+	  m_evtsPassAllTagWgt_BRWgt_B_MU_UP+= (eventWeightTag * BRWgt_B_MU_UP);
+	  m_evtsPassAllTagWgt_BRWgt_B_MU_DOWN+= (eventWeightTag * BRWgt_B_MU_DOWN);
+	  m_evtsPassAllTagWgt_BRWgt_B_TAU_MU_UP+= (eventWeightTag * BRWgt_B_TAU_MU_UP);
+	  m_evtsPassAllTagWgt_BRWgt_B_TAU_MU_DOWN+= (eventWeightTag * BRWgt_B_TAU_MU_DOWN);
+	  m_evtsPassAllTagWgt_BRWgt_B_D_MUPLUS_UP+= (eventWeightTag * BRWgt_B_D_MUPLUS_UP);
+	  m_evtsPassAllTagWgt_BRWgt_B_D_MUPLUS_DOWN+= (eventWeightTag * BRWgt_B_D_MUPLUS_DOWN);
+	  m_evtsPassAllTagWgt_BRWgt_B_D_MUMINUS_UP+= (eventWeightTag * BRWgt_B_D_MUMINUS_UP);
+	  m_evtsPassAllTagWgt_BRWgt_B_D_MUMINUS_DOWN+= (eventWeightTag * BRWgt_B_D_MUMINUS_DOWN);
+	  m_evtsPassAllTagWgt_BRWgt_C_MU_UP+= (eventWeightTag * BRWgt_C_MU_UP);
+	  m_evtsPassAllTagWgt_BRWgt_C_MU_DOWN+= (eventWeightTag * BRWgt_C_MU_DOWN);
+	}else{
+	  m_evtsPassAllTagWgt+=eventWeightTag;
+        }
+  
+	return kTRUE;
+}
+
+void SMTttbarLplusJetsAnalysis::Terminate()
+{
+  
+  cout << "| ****** Terminating..." << endl;
+  cout << "|-> Total Evts Processed = " << m_evts << endl;
+  cout << "|-> Pass Evts MET Pretag = " << m_evtsPassMETPretag << endl;
+  cout << "|-> Pass Evts MET PretagWgt = " << m_evtsPassMETPretagWgt << endl;
+  cout << "|-> Pass Evts MTW Pretag = " << m_evtsPassMTWPretag << endl;
+  cout << "|-> Pass Evts MTW PretagWgt = " << m_evtsPassMTWPretagWgt << endl;
+  cout << "|-> Pass Evts Pretag = " << m_evtsPassAllPretag << endl;
+  cout << "|-> Pass Evts PretagWgt = " << m_evtsPassAllPretagWgt << endl;
+  cout << "|-> Pass Evts Tag = " << m_evtsPassAllTag << endl;
+  cout << "|-> Pass Evts Tag Wgt = " << m_evtsPassAllTagWgt << endl;
+  cout << "|-> Pass Evts Tag Wgt B_MU_UP = " << m_evtsPassAllTagWgt_BRWgt_B_MU_UP << endl;
+  cout << "|-> Pass Evts Tag Wgt B_MU_DOWN = " << m_evtsPassAllTagWgt_BRWgt_B_MU_DOWN << endl;
+  cout << "|-> Pass Evts Tag Wgt B_TAU_MU_UP = " << m_evtsPassAllTagWgt_BRWgt_B_TAU_MU_UP << endl;
+  cout << "|-> Pass Evts Tag Wgt B_TAU_MU_DOWN = " << m_evtsPassAllTagWgt_BRWgt_B_TAU_MU_DOWN << endl;
+  cout << "|-> Pass Evts Tag Wgt B_D_MUPLUS_UP = " << m_evtsPassAllTagWgt_BRWgt_B_D_MUPLUS_UP << endl;
+  cout << "|-> Pass Evts Tag Wgt B_D_MUPLUS_DOWN = " << m_evtsPassAllTagWgt_BRWgt_B_D_MUPLUS_DOWN << endl;
+  cout << "|-> Pass Evts Tag Wgt B_D_MUMINUS_UP = " << m_evtsPassAllTagWgt_BRWgt_B_D_MUMINUS_UP << endl;
+  cout << "|-> Pass Evts Tag Wgt B_D_MUMINUS_DOWN = " << m_evtsPassAllTagWgt_BRWgt_B_D_MUMINUS_DOWN << endl;
+  cout << "|-> Pass Evts Tag Wgt C_MU_UP = " << m_evtsPassAllTagWgt_BRWgt_C_MU_UP << endl;
+  cout << "|-> Pass Evts Tag Wgt C_MU_DOWN = " << m_evtsPassAllTagWgt_BRWgt_C_MU_DOWN << endl;
+  cout << endl;
+  cout << "|-> m_nBjets = " << m_nBjets << endl;
+  cout << "|-> m_nBjets_tagged = " << m_nBjets_tagged << endl;
+
+  // Write all histograms and close root file
+	if (m_isElectron) m_outRootFile = new TFile(m_outFileName.Data(),"RECREATE");
+	else m_outRootFile = new TFile(m_outFileName.Data(),"RECREATE");
+  
+	m_histograms->write1DHistos();
+	m_histograms->write2DHistos();
+  m_outRootFile->Close();
+	cout << "| ****** Terminating... Done" << endl;
+
+
+}
+
+void SMTttbarLplusJetsAnalysis::fillNJetHistograms(TString channel, TString flavour, int njet, float wgt, bool tag){
+	TString histBaseName("");
+	if (!tag) histBaseName = "h_njet_pretag";
+	else histBaseName = "h_njet_tag";
+	m_histograms->find1DHisto(histBaseName+flavour+"_"+channel)->Fill(njet);
+	m_histograms->find1DHisto(histBaseName+flavour+"_"+channel+"_wgt")->Fill(njet,wgt);
+	if (lep_charge > 0){
+		histBaseName += "PosL";
+		m_histograms->find1DHisto(histBaseName+flavour+"_"+channel)->Fill(njet);
+		m_histograms->find1DHisto(histBaseName+flavour+"_"+channel+"_wgt")->Fill(njet,wgt);
+	}
+	else{
+		histBaseName += "NegL";
+		m_histograms->find1DHisto(histBaseName+flavour+"_"+channel)->Fill(njet);
+		m_histograms->find1DHisto(histBaseName+flavour+"_"+channel+"_wgt")->Fill(njet,wgt);
+	}
+}
+
+void SMTttbarLplusJetsAnalysis::fillNBJetHistograms(TString channel, TString flavour, int njet, float wgt){
+	TString histBaseName("");
+	histBaseName = "h_nBjet_tag";
+	m_histograms->find1DHisto(histBaseName+flavour+"_"+channel)->Fill(njet);
+	m_histograms->find1DHisto(histBaseName+flavour+"_"+channel+"_wgt")->Fill(njet,wgt);
+}
+
+void SMTttbarLplusJetsAnalysis::fillLeptonHistograms(TString channel, TString varTag, float varVal, float wgt, bool tag){
+	TString histBaseName("");
+	if (!tag) histBaseName = "h_"+channel+"_pretag";
+	else histBaseName = "h_"+channel+"_tag";
+	m_histograms->find1DHisto(histBaseName+"_"+varTag)->Fill(varVal);
+	m_histograms->find1DHisto(histBaseName+"_"+varTag+"_wgt")->Fill(varVal,wgt);
+	if (lep_charge > 0){
+		histBaseName += "PosL";
+		m_histograms->find1DHisto(histBaseName+"_"+varTag)->Fill(varVal);
+		m_histograms->find1DHisto(histBaseName+"_"+varTag+"_wgt")->Fill(varVal,wgt);
+	}
+	else{
+		histBaseName += "NegL";
+		m_histograms->find1DHisto(histBaseName+"_"+varTag)->Fill(varVal);
+		m_histograms->find1DHisto(histBaseName+"_"+varTag+"_wgt")->Fill(varVal,wgt);
+	}
+}
+
+void SMTttbarLplusJetsAnalysis::fillSMTHistograms(TString channel, TString varTag, float varVal, float wgt, bool tag){
+	TString histBaseName("");
+	if (tag) histBaseName = "h_"+channel+"_tag_SMT";
+	else histBaseName = "h_"+channel+"_pretag_SMT";
+	m_histograms->find1DHisto(histBaseName+"_"+varTag)->Fill(varVal);
+	m_histograms->find1DHisto(histBaseName+"_"+varTag+"_wgt")->Fill(varVal,wgt);
+    if (varTag=="pt"){
+        m_histograms->find1DHisto(histBaseName+"_"+varTag+"2")->Fill(varVal);
+        m_histograms->find1DHisto(histBaseName+"_"+varTag+"2_wgt")->Fill(varVal,wgt);
+    }
+}
+
+void SMTttbarLplusJetsAnalysis::fillLeadingJetHistograms(TString channel, TString varTag, float varVal, float wgt, bool tag){
+	TString histBaseName("");
+	if (!tag) histBaseName = "h_"+channel+"_pretag";
+	else histBaseName = "h_"+channel+"_tag";
+	m_histograms->find1DHisto(histBaseName+"_"+varTag)->Fill(varVal);
+	m_histograms->find1DHisto(histBaseName+"_"+varTag+"_wgt")->Fill(varVal,wgt);
+}
+
+double SMTttbarLplusJetsAnalysis::getWjets_HF_CA_SF(double nJet, int hfor, bool isEle, int idSys){
+  
+  //Raw pretag counts
+  double m_WjetsRaw_mu_1jex[4] = {24418.9, 68800.1, 292523, 756025};
+  double m_WjetsRaw_mu_2jex[4] = {14777.7, 35449.1, 77270.5, 348803};
+  double m_WjetsRaw_mu_3jex[4] = {5400.26, 10933.5, 17099, 77070.7};
+  double m_WjetsRaw_mu_4jex[4] = {1688.57, 2861.47, 3487.39, 16136.2};
+  double m_WjetsRaw_mu_3jin[4] = {7677.87, 14685.4, 21446.6, 97528.1};
+  double m_WjetsRaw_mu_4jin[4] = {2277.62, 3751.87, 4347.62, 20457.4};
+  
+  
+  double m_WjetsRaw_el_1jex[4] = {13112.1, 38247.1, 153258, 902634};
+  double m_WjetsRaw_el_2jex[4] = {7812.07, 18872.8, 42316.9, 198157};
+  double m_WjetsRaw_el_3jex[4] = {2948.99, 5752.12, 9615.95, 42153.2};
+  double m_WjetsRaw_el_4jex[4] = {919.919, 1514.98, 1973.25, 8958.65};
+  double m_WjetsRaw_el_3jin[4] = {4187.25, 7765.27, 12061.8, 53497.8};
+  double m_WjetsRaw_el_4jin[4] = {1238.26, 2013.15, 2445.8, 11344.6};
+  
+  double Wjets_out[4];
+  double chargeAsymNorm;
+  double scaleFactor = 1.;
+  
+  int NewMult;
+  double *Wjets_in(0);
+  if ( nJet == 1.  ){
+    NewMult=1;
+    Wjets_in = isEle ? m_WjetsRaw_el_1jex : m_WjetsRaw_mu_1jex;
+  } 
+  else if ( nJet == 2.  ){
+    NewMult=2;
+    Wjets_in = isEle ? m_WjetsRaw_el_2jex : m_WjetsRaw_mu_2jex;
+  }
+  else if ( nJet == 3.  ){
+    NewMult=3;
+    Wjets_in = isEle ? m_WjetsRaw_el_3jex : m_WjetsRaw_mu_3jex;
+  } 
+  else if ( nJet == 4.  ){
+    NewMult=4;
+    Wjets_in = isEle ? m_WjetsRaw_el_4jex : m_WjetsRaw_mu_4jex;
+  } 
+  else if ( nJet == 4.1  ){
+    NewMult=-4;
+    Wjets_in = isEle ? m_WjetsRaw_el_4jin : m_WjetsRaw_mu_4jin;
+  }
+  else if ( nJet == 3.1  ){
+    NewMult=-3;
+    Wjets_in = isEle ? m_WjetsRaw_el_3jin : m_WjetsRaw_mu_3jin;
+  }
+  
+  if(isEle)
+    SetWflavors_elec(idSys, "", NewMult, Wjets_in, Wjets_out, chargeAsymNorm);
+  else
+    SetWflavors_muon(idSys, "", NewMult, Wjets_in, Wjets_out, chargeAsymNorm);
+
+  scaleFactor = chargeAsymNorm * Wjets_out[hfor] / Wjets_in[hfor];
+  
+  return scaleFactor;
+  
+}
+

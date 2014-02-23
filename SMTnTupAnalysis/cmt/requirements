@@ -1,0 +1,67 @@
+package TopD3PDAnalysis
+
+author W. H. Bell <W.Bell@cern.ch>
+author K. Rosbach <kilian.rosbach@cern.ch>
+author A. Lister <Alison.Lister@cern.ch>
+
+public 
+
+use     AtlasPolicy             AtlasPolicy-01-*
+use     AtlasROOT               AtlasROOT-*             External
+use     GoodRunsLists           GoodRunsLists-*         DataQuality
+
+public
+
+apply_pattern installed_library
+library TopD3PDAnalysis *.cxx $(bin)TopD3PDAnalysisDict.cxx
+
+macro           TopD3PDAnalysis_dependencies     "root_algdictionary"
+
+macro           TopD3PDAnalysis_shlibflags        "$($(ROOTSYS)/bin/root-config --libs)"
+macro_append    TopD3PDAnalysis_shlibflags       "-L$(ROOTSYS)/lib -lHist -lTree -lTreePlayer -lPhysics -lMatrix"
+
+action          root_algdictionary      "( $(ROOTSYS)/bin/rootcint -f $(bin)TopD3PDAnalysisDict.cxx -c $(includes) \
+                ../TopD3PDAnalysis/AsciiInput.h \
+                ../TopD3PDAnalysis/CmdLineSvc.h \
+                ../TopD3PDAnalysis/CutFlowSelection.h \
+                ../TopD3PDAnalysis/EventSelection.h \
+                ../TopD3PDAnalysis/GenericTTree.h \
+                ../TopD3PDAnalysis/GrlSvc.h \
+                ../TopD3PDAnalysis/HistoSvc.h \
+                ../TopD3PDAnalysis/ParametersBase.h \
+                ../TopD3PDAnalysis/ParametersSvc.h \
+                ../TopD3PDAnalysis/RecoObjects.h \
+                ../TopD3PDAnalysis/RecoObservables.h \
+                ../TopD3PDAnalysis/TopData.h \
+                ../TopD3PDAnalysis/TopInputsObjects.h \
+                ../TopD3PDAnalysis/TopNtupleSvc.h \
+                ../TopD3PDAnalysis/TopSelection.h \
+                ../TopD3PDAnalysis/TopTree.h \
+                ../TopD3PDAnalysis/UserRecoObjects.h \
+                ../TopD3PDAnalysis/checkOQ.h \
+                ../TopD3PDAnalysis/egammaPIDdefs.h \
+                ../TopD3PDAnalysis/robustIsEMDefs.h \
+                ../TopD3PDAnalysis/TopD3PDAnalysisLinkDef.h )"
+
+private
+
+apply_pattern application_path
+apply_pattern static_app
+
+#============================================================================
+# Example applications
+ 
+application CutFlow -check apps/CutFlow.cxx
+macro_prepend CutFlow " $(TopD3PDAnalysis_linkopts) $(use_linkopts) "
+macro CutFlow_dependencies TopD3PDAnalysis
+
+application SemiLeptonic -check apps/SemiLeptonic.cxx
+macro_prepend SemiLeptonic " $(TopD3PDAnalysis_linkopts) $(use_linkopts) "
+macro SemiLeptonic_dependencies TopD3PDAnalysis
+
+application SkimAndThin -check apps/SkimAndThin.cxx
+macro_prepend SkimAndThin " $(TopD3PDAnalysis_linkopts) $(use_linkopts) "
+macro SkimAndThin_dependencies TopD3PDAnalysis
+
+macro_prepend TopD3PDAnalysis_linkopts " $(notAsNeeded_linkopt) -ldl "
+macro_append TopD3PDAnalysis_linkopts " $(notAsNeeded_linkopt) -ldl "

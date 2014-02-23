@@ -1,0 +1,124 @@
+| * Options set to = el  MC  3jinc
+| * This is the electron channel
+| * This is MC
+| * Running analysis using 1j,2j,3j(inclusive) bins
+INFO: Available parameter: #||{#eta(#mu)} , 8 bins.
+INFO: Available parameter: p_{T}(j1)[GeV] , 5 bins.
+INFO: Available parameter: dr(j1,#mu) , 4 bins.
+=== MuJetsMatrixMethodA integrated statistics (1jincl bin) ===
+=> Dimension: #||{#eta(#mu)}
+=>        Signal efficiencies = 0.964426 0.965863 0.964858 0.965742 0.965832 0.965751 0.970308 0.976265 
+=>          Fake efficiencies = 0.191414 0.19712 0.19729 0.217322 0.235447 0.229176 0.22655 0.278433 
+=> Fake efficiencies (tagged) = 0.139009 0.144792 0.146838 0.163327 0.17924 0.175544 0.175582 0.224658 
+=> Dimension: p_{T}(j1)[GeV]
+=>        Signal efficiencies = 0.96543 0.967374 0.966996 0.967018 0.967183 
+=>          Fake efficiencies = 0.278022 0.24073 0.196816 0.169592 0.165026 
+=> Fake efficiencies (tagged) = 0.20765 0.186722 0.154524 0.132588 0.127093 
+INFO: Available parameter: #||{#eta(#mu)} , 8 bins.
+INFO: Available parameter: p_{T}(j1)[GeV] , 5 bins.
+INFO: Available parameter: dr(j1,#mu) , 4 bins.
+=== MuJetsMatrixMethodA integrated statistics (1jincl bin) ===
+=> Dimension: #||{#eta(#mu)}
+=>        Signal efficiencies = 0.958252 0.959397 0.958796 0.958967 0.961368 0.96256 0.965184 0.973903 
+=>          Fake efficiencies = 0.181704 0.194911 0.194916 0.214481 0.233958 0.228782 0.225962 0.275961 
+=> Fake efficiencies (tagged) = 0.12413 0.132939 0.137302 0.148249 0.163742 0.167835 0.169698 0.218311 
+=> Dimension: p_{T}(j1)[GeV]
+=>        Signal efficiencies = 0.957184 0.961243 0.963816 0.962035 0.963852 
+=>          Fake efficiencies = 0.267228 0.235898 0.198591 0.171904 0.166642 
+=> Fake efficiencies (tagged) = 0.177912 0.170631 0.149151 0.129918 0.127126 
+Error in <TTree::SetBranchStatus>: unknown branch -> lep_ptcone20
+| ****** Terminating...
+|-> Total Evts Processed = 6943
+| * Options set to = mu  MC  3jinc
+| * This is the muon channel
+| * This is MC
+| * Running analysis using 1j,2j,3j(inclusive) bins
+INFO: Available parameter: #||{#eta(#mu)} , 8 bins.
+INFO: Available parameter: p_{T}(j1)[GeV] , 5 bins.
+INFO: Available parameter: dr(j1,#mu) , 4 bins.
+=== MuJetsMatrixMethodA integrated statistics (1jincl bin) ===
+=> Dimension: #||{#eta(#mu)}
+=>        Signal efficiencies = 0.964426 0.965863 0.964858 0.965742 0.965832 0.965751 0.970308 0.976265 
+=>          Fake efficiencies = 0.191414 0.19712 0.19729 0.217322 0.235447 0.229176 0.22655 0.278433 
+=> Fake efficiencies (tagged) = 0.139009 0.144792 0.146838 0.163327 0.17924 0.175544 0.175582 0.224658 
+=> Dimension: p_{T}(j1)[GeV]
+=>        Signal efficiencies = 0.96543 0.967374 0.966996 0.967018 0.967183 
+=>          Fake efficiencies = 0.278022 0.24073 0.196816 0.169592 0.165026 
+=> Fake efficiencies (tagged) = 0.20765 0.186722 0.154524 0.132588 0.127093 
+INFO: Available parameter: #||{#eta(#mu)} , 8 bins.
+INFO: Available parameter: p_{T}(j1)[GeV] , 5 bins.
+INFO: Available parameter: dr(j1,#mu) , 4 bins.
+=== MuJetsMatrixMethodA integrated statistics (1jincl bin) ===
+=> Dimension: #||{#eta(#mu)}
+=>        Signal efficiencies = 0.958252 0.959397 0.958796 0.958967 0.961368 0.96256 0.965184 0.973903 
+=>          Fake efficiencies = 0.181704 0.194911 0.194916 0.214481 0.233958 0.228782 0.225962 0.275961 
+=> Fake efficiencies (tagged) = 0.12413 0.132939 0.137302 0.148249 0.163742 0.167835 0.169698 0.218311 
+=> Dimension: p_{T}(j1)[GeV]
+=>        Signal efficiencies = 0.957184 0.961243 0.963816 0.962035 0.963852 
+=>          Fake efficiencies = 0.267228 0.235898 0.198591 0.171904 0.166642 
+=> Fake efficiencies (tagged) = 0.177912 0.170631 0.149151 0.129918 0.127126 
+Error in <TTree::SetBranchStatus>: unknown branch -> lep_ptcone20
+| ****** Terminating...
+|-> Total Evts Processed = 9029
+| * Options set to = el  MC  4jinc
+| * This is the electron channel
+| * This is MC
+| * Running analysis using 1j,2j,3j,4j(inclusive) bins
+INFO: Available parameter: #||{#eta(#mu)} , 8 bins.
+INFO: Available parameter: p_{T}(j1)[GeV] , 5 bins.
+INFO: Available parameter: dr(j1,#mu) , 4 bins.
+=== MuJetsMatrixMethodA integrated statistics (1jincl bin) ===
+=> Dimension: #||{#eta(#mu)}
+=>        Signal efficiencies = 0.964426 0.965863 0.964858 0.965742 0.965832 0.965751 0.970308 0.976265 
+=>          Fake efficiencies = 0.191414 0.19712 0.19729 0.217322 0.235447 0.229176 0.22655 0.278433 
+=> Fake efficiencies (tagged) = 0.139009 0.144792 0.146838 0.163327 0.17924 0.175544 0.175582 0.224658 
+=> Dimension: p_{T}(j1)[GeV]
+=>        Signal efficiencies = 0.96543 0.967374 0.966996 0.967018 0.967183 
+=>          Fake efficiencies = 0.278022 0.24073 0.196816 0.169592 0.165026 
+=> Fake efficiencies (tagged) = 0.20765 0.186722 0.154524 0.132588 0.127093 
+INFO: Available parameter: #||{#eta(#mu)} , 8 bins.
+INFO: Available parameter: p_{T}(j1)[GeV] , 5 bins.
+INFO: Available parameter: dr(j1,#mu) , 4 bins.
+=== MuJetsMatrixMethodA integrated statistics (1jincl bin) ===
+=> Dimension: #||{#eta(#mu)}
+=>        Signal efficiencies = 0.958252 0.959397 0.958796 0.958967 0.961368 0.96256 0.965184 0.973903 
+=>          Fake efficiencies = 0.181704 0.194911 0.194916 0.214481 0.233958 0.228782 0.225962 0.275961 
+=> Fake efficiencies (tagged) = 0.12413 0.132939 0.137302 0.148249 0.163742 0.167835 0.169698 0.218311 
+=> Dimension: p_{T}(j1)[GeV]
+=>        Signal efficiencies = 0.957184 0.961243 0.963816 0.962035 0.963852 
+=>          Fake efficiencies = 0.267228 0.235898 0.198591 0.171904 0.166642 
+=> Fake efficiencies (tagged) = 0.177912 0.170631 0.149151 0.129918 0.127126 
+Error in <TTree::SetBranchStatus>: unknown branch -> lep_ptcone20
+| ****** Terminating...
+|-> Total Evts Processed = 6943
+| * Options set to = mu  MC  4jinc
+| * This is the muon channel
+| * This is MC
+| * Running analysis using 1j,2j,3j,4j(inclusive) bins
+INFO: Available parameter: #||{#eta(#mu)} , 8 bins.
+INFO: Available parameter: p_{T}(j1)[GeV] , 5 bins.
+INFO: Available parameter: dr(j1,#mu) , 4 bins.
+=== MuJetsMatrixMethodA integrated statistics (1jincl bin) ===
+=> Dimension: #||{#eta(#mu)}
+=>        Signal efficiencies = 0.964426 0.965863 0.964858 0.965742 0.965832 0.965751 0.970308 0.976265 
+=>          Fake efficiencies = 0.191414 0.19712 0.19729 0.217322 0.235447 0.229176 0.22655 0.278433 
+=> Fake efficiencies (tagged) = 0.139009 0.144792 0.146838 0.163327 0.17924 0.175544 0.175582 0.224658 
+=> Dimension: p_{T}(j1)[GeV]
+=>        Signal efficiencies = 0.96543 0.967374 0.966996 0.967018 0.967183 
+=>          Fake efficiencies = 0.278022 0.24073 0.196816 0.169592 0.165026 
+=> Fake efficiencies (tagged) = 0.20765 0.186722 0.154524 0.132588 0.127093 
+INFO: Available parameter: #||{#eta(#mu)} , 8 bins.
+INFO: Available parameter: p_{T}(j1)[GeV] , 5 bins.
+INFO: Available parameter: dr(j1,#mu) , 4 bins.
+=== MuJetsMatrixMethodA integrated statistics (1jincl bin) ===
+=> Dimension: #||{#eta(#mu)}
+=>        Signal efficiencies = 0.958252 0.959397 0.958796 0.958967 0.961368 0.96256 0.965184 0.973903 
+=>          Fake efficiencies = 0.181704 0.194911 0.194916 0.214481 0.233958 0.228782 0.225962 0.275961 
+=> Fake efficiencies (tagged) = 0.12413 0.132939 0.137302 0.148249 0.163742 0.167835 0.169698 0.218311 
+=> Dimension: p_{T}(j1)[GeV]
+=>        Signal efficiencies = 0.957184 0.961243 0.963816 0.962035 0.963852 
+=>          Fake efficiencies = 0.267228 0.235898 0.198591 0.171904 0.166642 
+=> Fake efficiencies (tagged) = 0.177912 0.170631 0.149151 0.129918 0.127126 
+Error in <TTree::SetBranchStatus>: unknown branch -> lep_ptcone20
+| ****** Terminating...
+|-> Total Evts Processed = 9029

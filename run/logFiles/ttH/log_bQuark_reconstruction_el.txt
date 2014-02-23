@@ -1,0 +1,3 @@
+Number of bQuarks with pT greater than 25GeV: 92
+Number of bQuarks with Eta within -2.5 to 2.5: 124
+Number of bQuarks that are within the allowed Eta range that have pT < 25GeV: 83

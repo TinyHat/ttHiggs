@@ -1,0 +1,16 @@
+Total number of bquarks: 13878
+Number of bquarks far from jets: 622
+ 
+Total number of jets that are not close to a bquark (DR > 0.4): 12897
+Number of jets that are not close to a bquark and are NOT b-tagged: 12178
+Number of jets that are not close to a bquark but ARE b-tagged: 719
+Mistag rate = 0.0590409 +/- 0.00213587
+
+Total number of jets close to a bquark (Min value of DR, DR < 0.4): 10700
+Number of jets close to bquark that are not b-tagged: 3296
+Number of jets close to bquark that are b-tagged: 7404
+ 
+Reconstruction efficiency = 0.771004 +/- 0.0035668
+ 
+b-tagging efficieny = 0.691963 +/- 0.00446325
+ 
