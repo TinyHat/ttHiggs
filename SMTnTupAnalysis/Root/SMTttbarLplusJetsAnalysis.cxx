@@ -308,7 +308,7 @@ Bool_t SMTttbarLplusJetsAnalysis::Process(Long64_t entry)
     }
   }
 
-//  if (taggedJetIndexes.size() < 2) return kTRUE; 
+  if (taggedJetIndexes.size() < 2) return kTRUE; 
 
   // increment event counter
   m_evts++;
