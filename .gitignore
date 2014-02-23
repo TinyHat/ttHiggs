@@ -3,6 +3,7 @@
 *.pdf
 *.root
 *.o
+*.so
 *.d
 *.svn
 StandAlone
